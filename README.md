@@ -65,6 +65,23 @@ Copy-Item .env.example .env.local
 
 ## Menjalankan Aplikasi
 
+Pastikan backend `airdanapi_BE` sudah berjalan di:
+
+```text
+http://localhost:8080
+```
+
+Jalankan frontend di terminal lain dari workspace tugas besar:
+
+```powershell
+cd "D:\Kuli Ah S4\RPL_II new\Tugas_Besar\airdanapi_FE"
+npm install
+Copy-Item .env.example .env.local
+npm run dev
+```
+
+Jika `node_modules` dan `.env.local` sudah ada, `npm install` dan `Copy-Item .env.example .env.local` tidak perlu diulang.
+
 ```bash
 npm run dev
 ```
@@ -74,6 +91,37 @@ Frontend default berjalan di:
 ```text
 http://localhost:3000
 ```
+
+Buka URL tersebut di browser. Frontend akan membaca backend dari `NEXT_PUBLIC_API_URL`, default-nya:
+
+```text
+http://localhost:8080
+```
+
+Untuk menghentikan dev server, tekan `Ctrl+C` di terminal yang menjalankan `npm run dev`.
+
+## Menjalankan Backend dan Frontend Lokal
+
+Gunakan dua terminal terpisah.
+
+Terminal 1 - backend:
+
+```powershell
+cd "D:\Kuli Ah S4\RPL_II new\Tugas_Besar\airdanapi_BE"
+go run ./cmd/server
+```
+
+Terminal 2 - frontend:
+
+```powershell
+cd "D:\Kuli Ah S4\RPL_II new\Tugas_Besar\airdanapi_FE"
+npm run dev
+```
+
+URL lokal:
+
+- Backend: `http://localhost:8080`
+- Frontend: `http://localhost:3000`
 
 ## Build dan Validasi
 

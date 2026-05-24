@@ -1,9 +1,24 @@
 import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap"
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+  display: "swap"
+});
+
 export const metadata: Metadata = {
-  title: "Integrator Console",
-  description: "API Gateway / Integrator Console"
+  title: "Integrator Console — API Gateway",
+  description:
+    "Integrator Console untuk monitoring dan manajemen API Gateway Ekosistem UMKM",
+  keywords: ["api gateway", "integrator", "console", "monitoring"]
 };
 
 export default function RootLayout({
@@ -12,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="id">
-      <body>{children}</body>
+    <html lang="id" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }

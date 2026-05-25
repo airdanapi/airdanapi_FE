@@ -90,13 +90,18 @@ export type GatewayFee = {
   id: number;
   request_id: string;
   user_id: string;
-  target_app: string;
-  original_amount: number;
+  source_app: string;
+  transaction_amount: number;
   fee_amount: number;
+  fee_rate: number;
   status: string;
   retry_count: number;
+  max_retries: number;
   next_retry_at: string | null;
+  smartbank_ref: string | null;
+  error_message: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 // ─── Request Logs ─────────────────────────────────────────────────────────────
@@ -105,15 +110,15 @@ export type RequestLog = {
   id: number;
   request_id: string;
   parent_request_id: string | null;
-  user_id: string;
-  source_app: string;
+  user_id: string | null;
+  source_app: string | null;
   target_app: string;
   endpoint: string;
   method: string;
-  status_code: number;
-  latency_ms: number;
+  status_code: number | null;
+  latency_ms: number | null;
   ip_address: string;
-  request_hash: string;
+  request_hash: string | null;
   response_hash: string | null;
   lifecycle: string;
   error_message: string | null;
@@ -212,7 +217,7 @@ export async function getFeesPending(page = 1, perPage = 20, status = "PENDING")
 }
 
 export async function retryFee(id: number) {
-  return request<{ retried: boolean }>(
+  return request<GatewayFee>(
     `/integrator/biaya_layanan_integrasi/retry/${id}`,
     { method: "POST" }
   );

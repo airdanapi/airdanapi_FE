@@ -3,9 +3,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import {
+  getDashboardRecentErrors,
   getDashboardSummary,
+  getDashboardTopServices,
   getDashboardThroughput,
+  getFeesPending,
+  getServicesHealth,
   type DashboardSummary,
+  type GatewayFee,
+  type RequestLog,
+  type ServiceHealth,
+  type TopServicePoint,
   type ThroughputPoint
 } from "@/lib/api";
 
@@ -21,6 +29,10 @@ const fallbackSummary: DashboardSummary = {
 export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary>(fallbackSummary);
   const [throughput, setThroughput] = useState<ThroughputPoint[]>([]);
+  const [topServices, setTopServices] = useState<TopServicePoint[]>([]);
+  const [serviceHealth, setServiceHealth] = useState<ServiceHealth[]>([]);
+  const [recentErrors, setRecentErrors] = useState<RequestLog[]>([]);
+  const [pendingFees, setPendingFees] = useState<GatewayFee[]>([]);
   const [status, setStatus] = useState<"loading" | "live" | "fallback">("loading");
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -28,17 +40,36 @@ export default function DashboardPage() {
   const loadDashboard = useCallback(async () => {
     setRefreshing(true);
     try {
-      const [nextSummary, nextThroughput] = await Promise.all([
+      const [
+        nextSummary,
+        nextThroughput,
+        nextTopServices,
+        nextHealth,
+        nextErrors,
+        nextPendingFees
+      ] = await Promise.all([
         getDashboardSummary(),
-        getDashboardThroughput()
+        getDashboardThroughput(),
+        getDashboardTopServices(),
+        getServicesHealth(),
+        getDashboardRecentErrors(),
+        getFeesPending(1, 5, "PENDING")
       ]);
       setSummary(nextSummary);
       setThroughput(nextThroughput.items);
+      setTopServices(nextTopServices.items);
+      setServiceHealth(nextHealth.items);
+      setRecentErrors(nextErrors.items);
+      setPendingFees(nextPendingFees.items);
       setStatus("live");
       setLastFetched(new Date());
     } catch {
       setSummary(fallbackSummary);
       setThroughput([]);
+      setTopServices([]);
+      setServiceHealth([]);
+      setRecentErrors([]);
+      setPendingFees([]);
       setStatus("fallback");
       setLastFetched(new Date());
     } finally {
@@ -58,6 +89,11 @@ export default function DashboardPage() {
   const maxCount = useMemo(
     () => Math.max(...throughput.map((p) => p.count), 1),
     [throughput]
+  );
+
+  const maxServiceCount = useMemo(
+    () => Math.max(...topServices.map((service) => service.request_count), 1),
+    [topServices]
   );
 
   return (
@@ -222,6 +258,100 @@ export default function DashboardPage() {
           )}
         </div>
       </section>
+
+      <section className="mt-5 grid gap-5 xl:grid-cols-2">
+        <Panel title="Top Services" meta={`${topServices.length} service`}>
+          {status === "loading" ? (
+            <StackSkeleton />
+          ) : topServices.length === 0 ? (
+            <EmptyPanel text="Belum ada traffic service dalam 24 jam terakhir." />
+          ) : (
+            <div className="space-y-3">
+              {topServices.map((service) => (
+                <div key={service.service_name}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-medium text-slate-300">{service.service_name}</span>
+                    <span className="font-mono text-slate-500">{service.request_count}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-800">
+                    <div
+                      className="h-2 rounded-full bg-primary"
+                      style={{ width: `${Math.max(6, (service.request_count / maxServiceCount) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Circuit Breaker Status" meta={`${serviceHealth.length} service`}>
+          {status === "loading" ? (
+            <StackSkeleton />
+          ) : serviceHealth.length === 0 ? (
+            <EmptyPanel text="Status circuit belum tersedia." />
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2">
+              {serviceHealth.slice(0, 6).map((service) => (
+                <div key={service.service_name} className="rounded-md border border-slate-800 bg-slate-950 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm font-medium">{service.service_name}</span>
+                    <span className="rounded border border-slate-700 px-2 py-0.5 font-mono text-[11px] text-slate-400">
+                      {service.circuit_state}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">{service.routes} registered routes</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+      </section>
+
+      <section className="mt-5 grid gap-5 xl:grid-cols-2">
+        <Panel title="Recent Errors" meta={`${recentErrors.length} item`}>
+          {status === "loading" ? (
+            <StackSkeleton />
+          ) : recentErrors.length === 0 ? (
+            <EmptyPanel text="Tidak ada error terbaru." />
+          ) : (
+            <div className="divide-y divide-slate-800">
+              {recentErrors.map((log) => (
+                <div key={log.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="truncate text-sm font-medium">{log.target_app}</p>
+                    <span className="rounded border border-danger/30 bg-danger/10 px-2 py-0.5 font-mono text-[11px] text-red-300">
+                      {log.status_code ?? "-"}
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate font-mono text-xs text-slate-500">{log.endpoint}</p>
+                  <p className="mt-1 text-xs text-slate-600">{formatDate(log.created_at)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Deferred Fees" meta={`${pendingFees.length} pending`}>
+          {status === "loading" ? (
+            <StackSkeleton />
+          ) : pendingFees.length === 0 ? (
+            <EmptyPanel text="Tidak ada fee pending." />
+          ) : (
+            <div className="divide-y divide-slate-800">
+              {pendingFees.map((fee) => (
+                <div key={fee.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-xs text-slate-300">{fee.request_id}</p>
+                    <p className="mt-1 text-xs text-slate-500">{fee.source_app} / retry {fee.retry_count}</p>
+                  </div>
+                  <span className="shrink-0 font-mono text-sm text-monetary">{currency(fee.fee_amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+      </section>
     </AppShell>
   );
 }
@@ -244,7 +374,7 @@ function StatusBadge({
     },
     fallback: {
       cls: "border-warning/30 bg-warning/10 text-yellow-400",
-      label: "Mock fallback"
+      label: "API unavailable"
     }
   };
   const { cls, label } = config[status];
@@ -315,10 +445,57 @@ function QueueRow({
   );
 }
 
+function Panel({
+  title,
+  meta,
+  children
+}: {
+  title: string;
+  meta: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-surface p-5">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h3 className="font-semibold">{title}</h3>
+        <span className="font-mono text-xs text-slate-600">{meta}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function EmptyPanel({ text }: { text: string }) {
+  return (
+    <div className="grid min-h-[160px] place-items-center rounded-md border border-slate-800 bg-slate-950 px-4 text-center text-sm text-text-secondary">
+      {text}
+    </div>
+  );
+}
+
+function StackSkeleton() {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="h-12 animate-pulse rounded-md bg-slate-800" />
+      ))}
+    </div>
+  );
+}
+
 function currency(value: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     maximumFractionDigits: 0
   }).format(value);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }

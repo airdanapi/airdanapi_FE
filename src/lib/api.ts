@@ -38,6 +38,11 @@ export type ThroughputPoint = {
   count: number;
 };
 
+export type TopServicePoint = {
+  service_name: string;
+  request_count: number;
+};
+
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
 export type Route = {
@@ -76,6 +81,57 @@ export type ServiceHealth = {
   status: string;
   circuit_state: string;
   routes: number;
+};
+
+// ─── Security & config ───────────────────────────────────────────────────────
+
+export type SecuritySummary = {
+  issuer: string;
+  audience: string;
+  clock_skew_seconds: number;
+  signing_key_mode: string;
+  key_rotation_owner: string;
+  roles: Array<{ name: string; description: string }>;
+  scopes: Array<{ name: string; description: string }>;
+  blacklist: {
+    mode: string;
+    management: string;
+    description: string;
+  };
+};
+
+export type ConfigDefaults = {
+  app: {
+    env: string;
+    name: string;
+    version: string;
+    port: string;
+  };
+  smartbank: {
+    base_url: string;
+    mode: string;
+    timeout_ms: number;
+  };
+  fee: {
+    rate: number;
+    revenue_user: string;
+  };
+  protection: {
+    read_rate_limit_per_minute: number;
+    transactional_rate_limit_per_minute: number;
+    transaction_cooldown_seconds: number;
+    transaction_daily_limit: number;
+    idempotency_ttl_hours: number;
+    circuit_open_seconds: number;
+  };
+  logging: {
+    request_lifecycle: string[];
+    body_storage: string;
+    persistence: string;
+  };
+  cors: {
+    allowed_origins: string;
+  };
 };
 
 // ─── Gateway Fees ─────────────────────────────────────────────────────────────
@@ -166,6 +222,14 @@ export async function getDashboardThroughput() {
   return request<{ items: ThroughputPoint[] }>("/console/dashboard/throughput");
 }
 
+export async function getDashboardTopServices() {
+  return request<{ items: TopServicePoint[] }>("/console/dashboard/top-services");
+}
+
+export async function getDashboardRecentErrors() {
+  return request<{ items: RequestLog[] }>("/console/dashboard/recent-errors");
+}
+
 // ─── Route functions ──────────────────────────────────────────────────────────
 
 export async function getRoutes() {
@@ -199,6 +263,14 @@ export async function getServicesHealth() {
   return request<{ items: ServiceHealth[] }>("/console/services/health");
 }
 
+export async function getSecuritySummary() {
+  return request<SecuritySummary>("/console/security/summary");
+}
+
+export async function getConfigDefaults() {
+  return request<ConfigDefaults>("/console/config/defaults");
+}
+
 // ─── Fee functions ────────────────────────────────────────────────────────────
 
 export async function getFeesSummary() {
@@ -218,7 +290,7 @@ export async function getFeesPending(page = 1, perPage = 20, status = "PENDING")
 
 export async function retryFee(id: number) {
   return request<GatewayFee>(
-    `/integrator/biaya_layanan_integrasi/retry/${id}`,
+    `/console/fees/retry/${id}`,
     { method: "POST" }
   );
 }
@@ -237,7 +309,7 @@ export async function getLogs(filter: LogFilter = {}) {
   if (filter.per_page) params.set("per_page", String(filter.per_page));
   const query = params.toString();
   return request<{ items: RequestLog[]; page: number; per_page: number }>(
-    `/integrator/logging${query ? `?${query}` : ""}`
+    `/console/logs${query ? `?${query}` : ""}`
   );
 }
 
